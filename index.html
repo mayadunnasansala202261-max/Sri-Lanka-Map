@@ -766,19 +766,6 @@ function findCity(query){
   return CITIES.find(c=>c.name.toLowerCase()===q) || matchCities(query, 1)[0] || null;
 }
 
-// Fallback safety net for the "panel too big after search" bug: some mobile
-// browsers zoom the page in when a text input gets focus. Raising the input's
-// font-size to 16px (see the mobile media query) stops this in the vast
-// majority of cases, but if a browser still zooms for any reason, forcing the
-// viewport meta tag to re-apply snaps it back to scale 1 immediately.
-function resetMobileZoom(){
-  const vp = document.querySelector('meta[name="viewport"]');
-  if(!vp) return;
-  const content = vp.getAttribute('content');
-  vp.setAttribute('content', content + ', user-scalable=no');
-  requestAnimationFrame(()=> vp.setAttribute('content', content));
-}
-
 // picking a city: used by both a suggestion tap and a confirmed text search —
 // this is the single path that actually opens the side panel, so both routes
 // on mobile are guaranteed to behave the same as clicking a marker directly.
@@ -788,7 +775,6 @@ function pickCity(match){
   citySearchInput.value = match.name;
   updateClearBtn();
   citySearchInput.blur();
-  resetMobileZoom();
 }
 
 function renderSuggestions(){
@@ -849,7 +835,7 @@ citySearchInput.addEventListener('input', renderSuggestions);
 citySearchInput.addEventListener('focus', renderSuggestions);
 citySearchInput.addEventListener('keydown', e=>{
   if(e.key==='Enter'){ e.preventDefault(); runCitySearch(); }
-  else if(e.key==='Escape'){ hideSuggestions(); citySearchInput.blur(); resetMobileZoom(); }
+  else if(e.key==='Escape'){ hideSuggestions(); citySearchInput.blur(); }
 });
 // small delay so a tap on a suggestion (mousedown/touchstart above) fires
 // before this blur-driven hide removes it from the DOM
@@ -1240,7 +1226,7 @@ function updateLabels(){
     // tighter breathing room on phones, where screen real estate is scarce and
     // pills are already smaller — this lets more names survive decluttering
     // instead of collapsing to a bare dot
-    const gap = window.innerWidth < 760 ? 1 : 4;
+    const gap = window.innerWidth < 760 ? -3 : 4;
     const box = {left:p.x-tagW/2-gap, right:p.x+tagW/2+gap, top:p.y-tagH-16-gap, bottom:p.y-16+gap};
     const overlap = p.m.id!==selectedId && placed.some(b =>
       box.left < b.right && box.right > b.left && box.top < b.bottom && box.bottom > b.top
