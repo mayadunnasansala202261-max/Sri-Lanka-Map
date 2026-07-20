@@ -70,7 +70,7 @@
   #citySuggestions{
     position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:25;
     background:var(--surface-solid); border:1px solid var(--line); border-radius:14px;
-    overflow:hidden; max-height:220px; overflow-y:auto; display:none;
+    overflow:hidden; max-height:220px; overflow-y:auto; -webkit-overflow-scrolling:touch; display:none;
     box-shadow:0 12px 30px rgba(0,0,0,0.35);
   }
   #citySuggestions.show{display:block;}
@@ -85,13 +85,24 @@
   #citySuggestions button .region{color:var(--muted); font-size:11px; font-family:'IBM Plex Mono',monospace;}
   #citySearch input{
     width:100%; background:var(--surface); backdrop-filter:blur(14px);
-    border:1px solid var(--line); border-radius:20px; padding:9px 16px;
+    border:1px solid var(--line); border-radius:20px; padding:9px 32px 9px 16px;
     font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--cream);
     outline:none; -webkit-appearance:none;
   }
   #citySearch input::placeholder{color:var(--muted);}
   #citySearch input:focus{border-color:var(--gold);}
   #citySearch input.no-match{border-color:var(--coral); animation:searchShake .35s;}
+  /* one-tap clear/close — the box used to only close on blur, which on
+     mobile could take a couple of taps to actually register; this gives an
+     always-reachable way to instantly clear the text and dismiss the list */
+  #citySearchClear{
+    position:absolute; top:50%; right:6px; transform:translateY(-50%);
+    width:22px; height:22px; border-radius:50%; border:none; padding:0;
+    background:rgba(124,144,136,0.25); color:var(--cream); font-size:12px; line-height:1;
+    display:none; align-items:center; justify-content:center; cursor:pointer;
+  }
+  #citySearchClear.show{display:flex;}
+  #citySearchClear:hover, #citySearchClear:active{background:rgba(232,97,61,0.4);}
   @keyframes searchShake{
     0%,100%{transform:translateX(0);}
     25%{transform:translateX(-4px);}
@@ -248,13 +259,24 @@
     #statspanel .statshead{margin-bottom:5px;}
     #statspanel .row{padding:2px 0;}
     #citySearch{max-width:100%; margin-top:8px;}
+    /* the dropdown used to reach nearly a quarter of the screen, so closing
+       it felt like it took several taps; capping its height keeps it
+       reachable and leaves the map underneath still visible/tappable */
+    #citySuggestions{max-height:44vh;}
     #stage{
       position:relative; inset:auto;
       flex:1 1 auto; min-height:0; width:100%;
       order:2; /* map fills the leftover space below the header */
     }
+    /* legend/mode-toggle used to float fixed on top of the map, covering the
+       southern stations and shifting position whenever mobile browser chrome
+       (address bar / keyboard) resized the viewport. Docking it in normal
+       flow, right under the map, makes it stop jumping and stop hiding land. */
     #legend{
-      left:14px; right:14px; bottom:max(14px, env(safe-area-inset-bottom)); max-width:none;
+      position:static; left:auto; right:auto; bottom:auto; max-width:none;
+      width:100%; border-radius:0; border-left:none; border-right:none; border-bottom:none;
+      padding:12px 16px max(12px, env(safe-area-inset-bottom));
+      order:3; flex:0 0 auto;
     }
     #panel{width:100%;}
     #panel .panelhead{padding-top:max(20px, env(safe-area-inset-top));}
@@ -300,9 +322,10 @@
   <div id="titleblock">
     <span class="eyebrow">01°N — Indian Ocean</span>
     <h1>Sri Lanka,<br/>sensed live</h1>
-    <p>MAYA MAP</p>
+    <p>Live temperature, rainfall &amp; air quality across all 25 districts.</p>
     <div id="citySearch">
       <input id="citySearchInput" type="text" placeholder="Search a city…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search for a city" />
+      <button type="button" id="citySearchClear" aria-label="Clear search">✕</button>
       <div id="citySuggestions" role="listbox"></div>
     </div>
   </div>
@@ -663,10 +686,10 @@ if(window.innerWidth < 760){
   radius = targetRadius = 210;
 }
 
-function updateCamera(){
+function updateCamera(ease=0.08){
   // ease radius and look target toward their goals (used by flyTo / scroll)
-  radius += (targetRadius-radius)*0.08;
-  target.lerp(targetLook, 0.08);
+  radius += (targetRadius-radius)*ease;
+  target.lerp(targetLook, ease);
   const p = polar;
   camera.position.x = target.x + radius*Math.sin(p)*Math.sin(azimuth);
   camera.position.y = target.y + radius*Math.cos(p);
@@ -688,6 +711,8 @@ function flyTo(cityId){
 --------------------------------------------------------------------- */
 const citySearchInput = document.getElementById('citySearchInput');
 const citySuggestions = document.getElementById('citySuggestions');
+const citySearchClear = document.getElementById('citySearchClear');
+const citySearchWrap = document.getElementById('citySearch');
 
 function matchCities(query, limit=6){
   const q = query.trim().toLowerCase();
@@ -709,6 +734,7 @@ function pickCity(match){
   hideSuggestions();
   flyTo(match.id);
   citySearchInput.value = match.name;
+  updateClearBtn();
   citySearchInput.blur();
 }
 
@@ -721,6 +747,22 @@ function renderSuggestions(){
   citySuggestions.classList.add('show');
 }
 function hideSuggestions(){ citySuggestions.classList.remove('show'); citySuggestions.innerHTML=''; }
+
+function updateClearBtn(){ citySearchClear.classList.toggle('show', citySearchInput.value.length>0); }
+citySearchInput.addEventListener('input', updateClearBtn);
+citySearchClear.addEventListener('click', ()=>{
+  citySearchInput.value = '';
+  updateClearBtn();
+  hideSuggestions();
+  citySearchInput.focus();
+});
+// tapping/clicking anywhere outside the search box closes the dropdown in a
+// single tap — previously the only way to close it was blurring the input,
+// which some mobile browsers only do after the finger has already lifted,
+// making it feel like the box needed several taps to go away
+document.addEventListener('pointerdown', e=>{
+  if(!citySearchWrap.contains(e.target)) hideSuggestions();
+});
 
 // mousedown (not click) fires before the input's blur, so a tap on a
 // suggestion registers reliably even on mobile browsers that aggressively
@@ -754,6 +796,7 @@ citySearchInput.addEventListener('input', renderSuggestions);
 citySearchInput.addEventListener('focus', renderSuggestions);
 citySearchInput.addEventListener('keydown', e=>{
   if(e.key==='Enter'){ e.preventDefault(); runCitySearch(); }
+  else if(e.key==='Escape'){ hideSuggestions(); citySearchInput.blur(); }
 });
 // small delay so a tap on a suggestion (mousedown/touchstart above) fires
 // before this blur-driven hide removes it from the DOM
@@ -1141,7 +1184,10 @@ function updateLabels(){
   for(const p of _visible){
     const tagW = p.m.tag.offsetWidth || 90;
     const tagH = p.m.tag.offsetHeight || 22;
-    const gap = 4; // small breathing room so pills don't butt up against each other
+    // tighter breathing room on phones, where screen real estate is scarce and
+    // pills are already smaller — this lets more names survive decluttering
+    // instead of collapsing to a bare dot
+    const gap = window.innerWidth < 760 ? 1 : 4;
     const box = {left:p.x-tagW/2-gap, right:p.x+tagW/2+gap, top:p.y-tagH-16-gap, bottom:p.y-16+gap};
     const overlap = p.m.id!==selectedId && placed.some(b =>
       box.left < b.right && box.right > b.left && box.top < b.bottom && box.bottom > b.top
@@ -1154,23 +1200,32 @@ function updateLabels(){
 let clock = new THREE.Clock();
 function animate(){
   requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
-  if(autoRotate) azimuthTarget += 0.0009;
+  // clamp dt so a dropped frame (tab switch, GC pause) never produces a
+  // sudden lurch — without this a stall could make the view "jump" once it
+  // catches up, which read as jerkiness rather than smooth motion
+  const dt = Math.min(clock.getDelta(), 0.1);
+  const t = clock.elapsedTime;
+  const dtScale = dt*60; // normalize against a 60fps baseline
+  if(autoRotate) azimuthTarget += 0.0009*dtScale;
 
   // momentum: once every finger has lifted, keep coasting on the last swipe's
   // velocity and let it decay, like flicking a real map instead of it stopping dead
   if(!dragging && activePointers.size===0 && (azimVelocity || polarVelocity)){
-    azimuthTarget += azimVelocity;
-    polarTarget = Math.min(1.35, Math.max(0.35, polarTarget + polarVelocity));
-    azimVelocity *= 0.92; polarVelocity *= 0.92;
+    azimuthTarget += azimVelocity*dtScale;
+    polarTarget = Math.min(1.35, Math.max(0.35, polarTarget + polarVelocity*dtScale));
+    const decay = Math.pow(0.92, dtScale);
+    azimVelocity *= decay; polarVelocity *= decay;
     if(Math.abs(azimVelocity) < 0.00004) azimVelocity = 0;
     if(Math.abs(polarVelocity) < 0.00004) polarVelocity = 0;
   }
-  // ease the actual camera angles toward their targets — this is what makes
-  // the rotation feel fluid rather than jumping in lockstep with raw touch events
-  azimuth += (azimuthTarget-azimuth)*0.3;
-  polar += (polarTarget-polar)*0.3;
-  updateCamera();
+  // ease the actual camera angles toward their targets — frame-rate-independent
+  // so the rotation feels equally fluid on a 60Hz phone and a 120Hz display,
+  // rather than jumping in lockstep with raw touch events at whatever rate
+  // the device happens to fire them
+  const rotEase = 1 - Math.pow(1-0.3, dtScale);
+  azimuth += (azimuthTarget-azimuth)*rotEase;
+  polar += (polarTarget-polar)*rotEase;
+  updateCamera(1 - Math.pow(1-0.08, dtScale));
 
   ringMeshes.forEach(r=>{
     const local = ((t*0.18)+r.phase)%1;
