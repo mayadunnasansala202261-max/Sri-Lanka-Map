@@ -104,15 +104,16 @@
     position:relative;
     background:var(--surface); backdrop-filter:blur(14px);
     border:1px solid var(--line); border-radius:14px;
-    padding:14px 44px 14px 18px; min-width:210px;
+    padding:14px 18px; min-width:210px;
     font-family:'IBM Plex Mono',monospace;
   }
   #statspanel .row{display:flex; justify-content:space-between; gap:18px; font-size:12px; color:var(--muted); padding:3px 0;}
   #statspanel .row b{color:var(--cream); font-weight:500;}
-  #statspanel .clock{color:var(--gold); font-size:13px; margin-bottom:8px; display:block;}
+  #statspanel .statshead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;}
+  #statspanel .clock{color:var(--gold); font-size:13px; display:block;}
 
   #themeToggleBtn{
-    position:absolute; top:10px; right:10px; width:28px; height:28px; border-radius:50%;
+    position:static; flex-shrink:0; width:28px; height:28px; border-radius:50%;
     border:1px solid var(--line); background:var(--surface-solid); color:var(--cream);
     font-size:13px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
   }
@@ -229,25 +230,31 @@
     body{display:flex; flex-direction:column;}
     #topbar{
       position:static; top:auto; left:auto; right:auto;
-      padding:max(12px, env(safe-area-inset-top)) 14px 10px;
-      flex-direction:column; align-items:stretch; gap:10px;
+      padding:max(10px, env(safe-area-inset-top)) 14px 8px;
+      flex-direction:column; align-items:stretch; gap:8px;
       background:var(--surface-solid); border-bottom:1px solid var(--line);
       z-index:5; flex:0 0 auto;
+      order:1; /* header always first, above the map */
     }
     #titleblock{max-width:100%;}
-    #titleblock p{max-width:100%;}
-    h1{font-size:22px;}
-    #statspanel{width:100%; min-width:0;}
-    #citySearch{max-width:100%;}
+    #titleblock p{display:none;} /* tagline dropped on mobile to give the map more height */
+    h1{font-size:19px; margin-top:2px;}
+    .eyebrow{font-size:10px;}
+    #statspanel{width:100%; min-width:0; padding:10px 16px;}
+    #statspanel .statshead{margin-bottom:5px;}
+    #statspanel .row{padding:2px 0;}
+    #citySearch{max-width:100%; margin-top:8px;}
     #stage{
       position:relative; inset:auto;
       flex:1 1 auto; min-height:0; width:100%;
+      order:2; /* map fills the leftover space below the header */
     }
     #legend{
       left:14px; right:14px; bottom:max(14px, env(safe-area-inset-bottom)); max-width:none;
     }
     #hint{display:none;}
-    #panel{width:min(340px, 92vw);}
+    #panel{width:100%;}
+    #panel .grid{grid-template-columns:1fr;} /* stack detail cards one under another */
     #modetoggle button{padding:9px 4px;}
   }
 
@@ -255,9 +262,9 @@
      RESPONSIVE — small phones
   --------------------------------------------------------------------- */
   @media (max-width: 420px){
-    h1{font-size:19px;}
-    .eyebrow{font-size:10px;}
-    #statspanel{padding:12px 14px;}
+    h1{font-size:18px;}
+    .eyebrow{font-size:9px;}
+    #statspanel{padding:9px 14px;}
     #statspanel .row{font-size:11px;}
     #legend{padding:12px 14px;}
     .citylabel .tag{font-size:10px; padding:2px 7px 2px 6px;}
@@ -302,8 +309,10 @@
     </div>
   </div>
   <div id="statspanel">
-    <button id="themeToggleBtn" aria-label="Toggle dark/light theme">🌙</button>
-    <span class="clock" id="clock">--:--:--</span>
+    <div class="statshead">
+      <span class="clock" id="clock">--:--:--</span>
+      <button id="themeToggleBtn" aria-label="Toggle dark/light theme">🌙</button>
+    </div>
     <div class="row"><span>Stations reporting</span><b id="statReporting">0 / 25</b></div>
     <div class="row"><span>Island avg. temp</span><b id="statTemp">—</b></div>
     <div class="row"><span>Warmest station</span><b id="statWarm">—</b></div>
