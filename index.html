@@ -66,9 +66,10 @@
   #titleblock{max-width:360px;}
   #titleblock p{color:var(--muted); font-size:13px; line-height:1.5; margin:10px 0 0 0; max-width:320px;}
 
-  #citySearch{position:relative; margin-top:12px; max-width:260px;}
+  #citySearch{position:relative; margin-top:12px; max-width:260px; width:100%;}
   #citySuggestions{
-    position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:25;
+    position:absolute; top:calc(100% + 6px); left:0; width:100%; z-index:25;
+    box-sizing:border-box;
     background:var(--surface-solid); border:1px solid var(--line); border-radius:14px;
     overflow:hidden; max-height:220px; overflow-y:auto; -webkit-overflow-scrolling:touch; display:none;
     box-shadow:0 12px 30px rgba(0,0,0,0.35);
@@ -252,17 +253,19 @@
       order:1; /* header always first, above the map */
     }
     #titleblock{max-width:100%;}
-    #titleblock p{display:none;} /* tagline dropped on mobile to give the map more height */
     h1{font-size:19px; margin-top:2px;}
     .eyebrow{font-size:10px;}
     #statspanel{width:100%; min-width:0; padding:10px 16px;}
     #statspanel .statshead{margin-bottom:5px;}
     #statspanel .row{padding:2px 0;}
-    #citySearch{max-width:100%; margin-top:8px;}
+    #citySearch{max-width:100%; width:100%; margin-top:8px;}
     /* the dropdown used to reach nearly a quarter of the screen, so closing
        it felt like it took several taps; capping its height keeps it
-       reachable and leaves the map underneath still visible/tappable */
-    #citySuggestions{max-height:44vh;}
+       reachable and leaves the map underneath still visible/tappable.
+       Rows are also tightened so the box reads as a compact list rather
+       than an oversized panel. */
+    #citySuggestions{max-height:38vh; width:100%; left:0;}
+    #citySuggestions button{padding:9px 14px;}
     #stage{
       position:relative; inset:auto;
       flex:1 1 auto; min-height:0; width:100%;
@@ -300,6 +303,34 @@
     #panel .bigtemp{font-size:48px;}
   }
 
+  /* ---------------------------------------------------------------------
+     RESPONSIVE — large laptop / desktop screens
+     On wide displays the header, legend and mode-toggle were staying at
+     their small mobile-adjacent base sizes, so they read as tiny relative
+     to all the empty space around them. Scale text and the selectable
+     boxes (mode toggle, theme toggle) up to match the screen.
+  --------------------------------------------------------------------- */
+  @media (min-width: 1400px){
+    #titleblock{max-width:440px;}
+    .eyebrow{font-size:13px;}
+    h1{font-size:36px;}
+    #citySearch{max-width:320px;}
+    #citySearch input{font-size:14px; padding:12px 38px 12px 20px;}
+    #statspanel{min-width:260px; padding:18px 22px;}
+    #statspanel .row{font-size:13px; padding:4px 0;}
+    #statspanel .clock{font-size:15px;}
+    #themeToggleBtn{width:34px; height:34px; font-size:15px;}
+    #legend{max-width:320px; padding:18px 20px;}
+    #legend .eyebrow{margin-bottom:10px;}
+    #legend .scale{height:10px;}
+    #legend .labels{font-size:10px;}
+    #modetoggle{margin-top:14px;}
+    #modetoggle button{font-size:11px; padding:10px 6px;}
+    .citylabel .tag{font-size:13px; padding:4px 11px 4px 8px;}
+    .citylabel .tag .name{font-size:13px;}
+    .citylabel .dot{width:13px; height:13px;}
+  }
+
   /* comfortable tap targets on touch devices */
   @media (pointer: coarse){
     #modetoggle button{min-height:38px;}
@@ -320,9 +351,8 @@
 
 <div id="topbar">
   <div id="titleblock">
-    <span class="eyebrow">01°N — Indian Ocean</span>
+    <span class="eyebrow">MAYA MAP</span>
     <h1>Sri Lanka,<br/>sensed live</h1>
-    <p>Live temperature, rainfall &amp; air quality across all 25 districts.</p>
     <div id="citySearch">
       <input id="citySearchInput" type="text" placeholder="Search a city…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search for a city" />
       <button type="button" id="citySearchClear" aria-label="Clear search">✕</button>
