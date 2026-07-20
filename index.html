@@ -1205,13 +1205,23 @@ function updateLabels(){
   for(const m of cityMarkers){
     vec.copy(m.worldPos).applyMatrix4(islandGroup.matrixWorld);
     vec.project(camera);
-    const behind = vec.z > 1;
+    // vec.z>1 catches points directly behind the camera, but during flyTo's
+    // close zoom-in (search path), other markers can momentarily project to
+    // extreme vec.x/vec.y values — thousands of px once converted to screen
+    // space. Those got written straight to style.left/top on an
+    // absolutely-positioned element, which inflates the page's scrollable
+    // width; mobile browsers respond by silently widening the whole layout
+    // viewport, breaking every @media breakpoint (the "search opens a
+    // PC-sized panel" bug). Culling on frustum position too, before ever
+    // writing a style, keeps every coordinate in a sane range.
+    const offscreen = vec.z > 1 || Math.abs(vec.x) > 1.05 || Math.abs(vec.y) > 1.05;
+    if(offscreen){ m.el.style.display = 'none'; continue; }
     const x = rect.left + (vec.x*0.5+0.5)*rect.width;
     const y = rect.top + (-vec.y*0.5+0.5)*rect.height;
     m.el.style.left = x+'px';
     m.el.style.top = y+'px';
-    m.el.style.display = behind ? 'none' : 'flex';
-    if(!behind) _visible.push({m, x, y, z:vec.z});
+    m.el.style.display = 'flex';
+    _visible.push({m, x, y, z:vec.z});
   }
 
   // Label decluttering: when the pills would overlap (common when several
