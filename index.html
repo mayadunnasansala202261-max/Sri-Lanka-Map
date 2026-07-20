@@ -67,6 +67,22 @@
   #titleblock p{color:var(--muted); font-size:13px; line-height:1.5; margin:10px 0 0 0; max-width:320px;}
 
   #citySearch{position:relative; margin-top:12px; max-width:260px;}
+  #citySuggestions{
+    position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:25;
+    background:var(--surface-solid); border:1px solid var(--line); border-radius:14px;
+    overflow:hidden; max-height:220px; overflow-y:auto; display:none;
+    box-shadow:0 12px 30px rgba(0,0,0,0.35);
+  }
+  #citySuggestions.show{display:block;}
+  #citySuggestions button{
+    display:flex; justify-content:space-between; align-items:center; width:100%;
+    background:none; border:none; text-align:left; cursor:pointer;
+    padding:11px 14px; font-family:'Inter',sans-serif; font-size:13px; color:var(--cream);
+    border-bottom:1px solid var(--line);
+  }
+  #citySuggestions button:last-child{border-bottom:none;}
+  #citySuggestions button:hover, #citySuggestions button:active, #citySuggestions button.active{background:rgba(232,163,61,0.14);}
+  #citySuggestions button .region{color:var(--muted); font-size:11px; font-family:'IBM Plex Mono',monospace;}
   #citySearch input{
     width:100%; background:var(--surface); backdrop-filter:blur(14px);
     border:1px solid var(--line); border-radius:20px; padding:9px 16px;
@@ -281,8 +297,8 @@
     <h1>Sri Lanka,<br/>sensed live</h1>
     <p>MAYA MAP</p>
     <div id="citySearch">
-      <input id="citySearchInput" list="cityList" type="text" placeholder="Search a city…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search for a city" />
-      <datalist id="cityList"></datalist>
+      <input id="citySearchInput" type="text" placeholder="Search a city…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search for a city" />
+      <div id="citySuggestions" role="listbox"></div>
     </div>
   </div>
   <div id="statspanel">
@@ -664,34 +680,77 @@ function flyTo(cityId){
    CITY SEARCH
 --------------------------------------------------------------------- */
 const citySearchInput = document.getElementById('citySearchInput');
-const cityListEl = document.getElementById('cityList');
-cityListEl.innerHTML = CITIES.map(c=>`<option value="${c.name}">`).join('');
+const citySuggestions = document.getElementById('citySuggestions');
 
+function matchCities(query, limit=6){
+  const q = query.trim().toLowerCase();
+  if(!q) return [];
+  const starts = CITIES.filter(c=>c.name.toLowerCase().startsWith(q));
+  const includes = CITIES.filter(c=>!c.name.toLowerCase().startsWith(q) && c.name.toLowerCase().includes(q));
+  return [...starts, ...includes].slice(0, limit);
+}
 function findCity(query){
   const q = query.trim().toLowerCase();
   if(!q) return null;
-  return CITIES.find(c=>c.name.toLowerCase()===q)
-      || CITIES.find(c=>c.name.toLowerCase().startsWith(q))
-      || CITIES.find(c=>c.name.toLowerCase().includes(q))
-      || null;
+  return CITIES.find(c=>c.name.toLowerCase()===q) || matchCities(query, 1)[0] || null;
 }
+
+// picking a city: used by both a suggestion tap and a confirmed text search —
+// this is the single path that actually opens the side panel, so both routes
+// on mobile are guaranteed to behave the same as clicking a marker directly.
+function pickCity(match){
+  hideSuggestions();
+  flyTo(match.id);
+  citySearchInput.value = match.name;
+  citySearchInput.blur();
+}
+
+function renderSuggestions(){
+  const matches = matchCities(citySearchInput.value);
+  if(!matches.length){ hideSuggestions(); return; }
+  citySuggestions.innerHTML = matches.map(c=>
+    `<button type="button" data-id="${c.id}"><span>${c.name}</span><span class="region">${c.region||''}</span></button>`
+  ).join('');
+  citySuggestions.classList.add('show');
+}
+function hideSuggestions(){ citySuggestions.classList.remove('show'); citySuggestions.innerHTML=''; }
+
+// mousedown (not click) fires before the input's blur, so a tap on a
+// suggestion registers reliably even on mobile browsers that aggressively
+// blur/close the keyboard the moment a finger lifts off the input
+citySuggestions.addEventListener('mousedown', e=>{
+  const btn = e.target.closest('button[data-id]');
+  if(!btn) return;
+  e.preventDefault();
+  const match = CITIES.find(c=>c.id===btn.dataset.id);
+  if(match) pickCity(match);
+});
+citySuggestions.addEventListener('touchstart', e=>{
+  const btn = e.target.closest('button[data-id]');
+  if(!btn) return;
+  const match = CITIES.find(c=>c.id===btn.dataset.id);
+  if(match) pickCity(match);
+}, {passive:true});
+
 function runCitySearch(){
   const match = findCity(citySearchInput.value);
   if(match){
-    flyTo(match.id);
-    citySearchInput.value = match.name;
-    citySearchInput.blur();
+    pickCity(match);
   } else if(citySearchInput.value.trim()){
+    hideSuggestions();
     citySearchInput.classList.remove('no-match');
     void citySearchInput.offsetWidth; // restart the shake animation on repeat misses
     citySearchInput.classList.add('no-match');
   }
 }
+citySearchInput.addEventListener('input', renderSuggestions);
+citySearchInput.addEventListener('focus', renderSuggestions);
 citySearchInput.addEventListener('keydown', e=>{
   if(e.key==='Enter'){ e.preventDefault(); runCitySearch(); }
 });
-// firing on 'change' catches a tap on a datalist suggestion, not just Enter
-citySearchInput.addEventListener('change', runCitySearch);
+// small delay so a tap on a suggestion (mousedown/touchstart above) fires
+// before this blur-driven hide removes it from the DOM
+citySearchInput.addEventListener('blur', ()=>setTimeout(hideSuggestions, 150));
 
 function resetView(){
   autoRotate = false;
