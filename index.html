@@ -259,6 +259,15 @@
     #statspanel .statshead{margin-bottom:5px;}
     #statspanel .row{padding:2px 0;}
     #citySearch{max-width:100%; width:100%; margin-top:8px;}
+    /* Mobile browsers auto-zoom the whole page when a focused input has a
+       font-size under 16px (Chrome/Android does this even though the
+       viewport meta sets maximum-scale=1.0 — it ignores that for
+       accessibility). That zoom was the real cause of the "city details
+       box is too big" bug: tapping the search box zoomed the page in,
+       then the panel opened while still zoomed, so it looked oversized
+       and ran off the right edge. Bumping the font to 16px stops the
+       zoom from firing at all. */
+    #citySearch input{font-size:16px; padding:10px 34px 10px 16px;}
     /* the dropdown used to reach nearly a quarter of the screen, so closing
        it felt like it took several taps; capping its height keeps it
        reachable and leaves the map underneath still visible/tappable.
@@ -757,6 +766,19 @@ function findCity(query){
   return CITIES.find(c=>c.name.toLowerCase()===q) || matchCities(query, 1)[0] || null;
 }
 
+// Fallback safety net for the "panel too big after search" bug: some mobile
+// browsers zoom the page in when a text input gets focus. Raising the input's
+// font-size to 16px (see the mobile media query) stops this in the vast
+// majority of cases, but if a browser still zooms for any reason, forcing the
+// viewport meta tag to re-apply snaps it back to scale 1 immediately.
+function resetMobileZoom(){
+  const vp = document.querySelector('meta[name="viewport"]');
+  if(!vp) return;
+  const content = vp.getAttribute('content');
+  vp.setAttribute('content', content + ', user-scalable=no');
+  requestAnimationFrame(()=> vp.setAttribute('content', content));
+}
+
 // picking a city: used by both a suggestion tap and a confirmed text search —
 // this is the single path that actually opens the side panel, so both routes
 // on mobile are guaranteed to behave the same as clicking a marker directly.
@@ -766,6 +788,7 @@ function pickCity(match){
   citySearchInput.value = match.name;
   updateClearBtn();
   citySearchInput.blur();
+  resetMobileZoom();
 }
 
 function renderSuggestions(){
@@ -826,7 +849,7 @@ citySearchInput.addEventListener('input', renderSuggestions);
 citySearchInput.addEventListener('focus', renderSuggestions);
 citySearchInput.addEventListener('keydown', e=>{
   if(e.key==='Enter'){ e.preventDefault(); runCitySearch(); }
-  else if(e.key==='Escape'){ hideSuggestions(); citySearchInput.blur(); }
+  else if(e.key==='Escape'){ hideSuggestions(); citySearchInput.blur(); resetMobileZoom(); }
 });
 // small delay so a tap on a suggestion (mousedown/touchstart above) fires
 // before this blur-driven hide removes it from the DOM
